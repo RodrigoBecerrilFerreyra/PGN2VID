@@ -49,14 +49,21 @@ class MoveGenerator:
 
     def move_generator(self, piece, starting_square, ending_square, frames=30, dutycycle=0.25):
 
+        # open piece image
         piece_img = Image.open(self.piece_folder + "/" + piece)
         piece_img = piece_img.resize((self.square_size, self.square_size), Image.Resampling.LANCZOS)
         if piece_img.mode != "RGBA":
             piece_img = piece_img.convert("RGBA")
 
+        # calculate how the piece will move
+        # piece will only move for dutycycle% of the total frames
         movement_frames = int(np.floor(frames * dutycycle))
         pause_frames = frames - movement_frames
-        movement_array = np.floor(np.linspace(starting_square, ending_square, movement_frames))
+        # smoothstep function: https://en.wikipedia.org/wiki/Smoothstep
+        smoothstep = np.linspace(0, 1, movement_frames)
+        smoothstep = 3*smoothstep**2 - 2*smoothstep**3
+        movement_array = starting_square + (ending_square - starting_square) * smoothstep
+        # make final movement array
         pause_array = np.full(pause_frames, ending_square)
         final_array = np.concat([movement_array, pause_array])
 
