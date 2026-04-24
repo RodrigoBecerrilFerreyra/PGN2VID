@@ -1,0 +1,18 @@
+[project]
+name = "pgn2vid"
+version = "0.1.0"
+description = "Create a video from a PGN file."
+authors = [
+    {name = "Rodrigo Becerril Ferreyra",email = "becerrilferreyra.rodrigo@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pillow (>=12.2.0,<13.0.0)",
+    "chess (>=1.11.2,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
