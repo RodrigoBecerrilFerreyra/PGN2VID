@@ -1,41 +1,70 @@
 import subprocess
+import numpy as np
 from PIL import Image
+import chess
 
-board  = f"boards/green.png"
-pieces = f"pieces/neo"
-size = 100
+def main():
 
-ffmpeg_cmd = [
-    "ffmpeg", "-y",
-    "-f", "rawvideo",
-    "-pix_fmt", "rgb24",
-    "-video_size", f"{size*8}x{size*8}",
-    "-framerate", "60",
-    "-i", "-",
-    "-c:v", "libvpx-vp9", "-crf", "35",
-    "out.webm"
-]
+    board  = f"boards/green.png"
+    pieces = f"pieces/neo"
+    size = 100
+    mg = MoveGenerator(size, board, pieces)
 
-ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
+    ffmpeg_cmd = [
+        "ffmpeg", "-y",
+        "-f", "rawvideo",
+        "-pix_fmt", "rgb24",
+        "-video_size", f"{size*8}x{size*8}",
+        "-framerate", "30",
+        "-i", "-",
+        "-c:v", "libvpx-vp9", "-crf", "35",
+        "out.webm"
+    ]
 
-board_img = Image.open(board)
-board_size = size * 8
-board_img = board_img.resize((board_size, board_size), Image.Resampling.LANCZOS)
+    ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
 
-if board_img.mode != "RGBA":
-    board_img = board_img.convert("RGBA")
+    board_img = Image.open(board)
+    board_size = size * 8
+    board_img = board_img.resize((board_size, board_size), Image.Resampling.LANCZOS)
 
-queen = pieces + "/wq.png"
-queen_img = Image.open(queen)
-queen_img = queen_img.resize((size, size), Image.Resampling.LANCZOS)
-if queen_img.mode != "RGBA":
-    queen_img = queen_img.convert("RGBA")
+    generator = mg.move_generator("wq.png", 0, 700)
+    for data in generator:
+        ffmpeg_process.stdin.write(data)
 
-for x in range(700):
-    board_copy = board_img.copy()
-    board_copy.paste(queen_img, (x, 0), queen_img)
-    board_copy = board_copy.convert("RGB")
-    ffmpeg_process.stdin.write(board_copy.tobytes())
+    ffmpeg_process.stdin.close()
+    ffmpeg_process.wait()
 
-ffmpeg_process.stdin.close()
-ffmpeg_process.wait()
+class MoveGenerator:
+
+    def __init__(self, square_size, board_file, piece_folder):
+        self.square_size = square_size
+        self.piece_folder = piece_folder
+
+        board_img = Image.open(board_file)
+        board_size = square_size * 8
+        board_img = board_img.resize((board_size, board_size), Image.Resampling.LANCZOS)
+        if board_img.mode != "RGBA":
+            board_img = board_img.convert("RGBA")
+        self.board_img = board_img
+
+    def move_generator(self, piece, starting_square, ending_square, frames=30, dutycycle=0.25):
+
+        piece_img = Image.open(self.piece_folder + "/" + piece)
+        piece_img = piece_img.resize((self.square_size, self.square_size), Image.Resampling.LANCZOS)
+        if piece_img.mode != "RGBA":
+            piece_img = piece_img.convert("RGBA")
+
+        movement_frames = int(np.floor(frames * dutycycle))
+        pause_frames = frames - movement_frames
+        movement_array = np.floor(np.linspace(starting_square, ending_square, movement_frames))
+        pause_array = np.full(pause_frames, ending_square)
+        final_array = np.concat([movement_array, pause_array])
+
+        for frame in range(frames):
+            board_copy = self.board_img.copy()
+            board_copy.paste(piece_img, (int(final_array[frame]), 0), piece_img)
+            board_copy = board_copy.convert("RGB")
+            yield board_copy.tobytes()
+
+if __name__ == "__main__":
+    main()
