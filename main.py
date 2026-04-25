@@ -27,7 +27,7 @@ def main():
     board_size = size * 8
     board_img = board_img.resize((board_size, board_size), Image.Resampling.LANCZOS)
 
-    generator = mg.move_generator("wq.png", (0,0), (700,700))
+    generator = mg.move_generator("wn.png", "g1", "f3")
     for data in generator:
         ffmpeg_process.stdin.write(data)
 
@@ -47,7 +47,11 @@ class MoveGenerator:
             board_img = board_img.convert("RGBA")
         self.board_img = board_img
 
-    def move_generator(self, piece, starting_square, ending_square, frames=30, dutycycle=0.25):
+    def move_generator(self, piece, start_square, end_square, frames=30, dutycycle=0.25):
+
+        # convert algebraic notation to board coordinates
+        starting_square = self.alg2coords(start_square)
+        ending_square = self.alg2coords(end_square)
 
         # open piece image
         piece_img = Image.open(self.piece_folder + "/" + piece)
@@ -60,8 +64,6 @@ class MoveGenerator:
         # piece will only move for dutycycle% of the total frames
         movement_frames = int(np.floor(frames * dutycycle))
         pause_frames = frames - movement_frames
-
-        # convert algebraic notation to board coordinates
 
         # smoothstep function: https://en.wikipedia.org/wiki/Smoothstep
         smoothstep = np.linspace(0, 1, movement_frames)
@@ -80,6 +82,30 @@ class MoveGenerator:
             board_copy.paste(piece_img, (int(final_array_x[frame]), int(final_array_y[frame])), piece_img)
             board_copy = board_copy.convert("RGB")
             yield board_copy.tobytes()
+
+    def alg2coords(self, board_coords):
+
+        if len(board_coords) != 2:
+            raise ValueError(f"Expected coordinate of length 2, got {len(board_coords)}.")
+
+        file = board_coords[0]
+        rank = int(board_coords[1])
+        if rank < 1 or rank > 8:
+            raise ValueError(f"Rank {rank} out of range.")
+
+        board_coords = board_coords.lower()
+        file_map = {
+            "a": 0,
+            "b": 1,
+            "c": 2,
+            "d": 3,
+            "e": 4,
+            "f": 5,
+            "g": 6,
+            "h": 7
+        }
+
+        return (file_map[file]*self.square_size, (8-rank)*self.square_size)
 
 if __name__ == "__main__":
     main()
