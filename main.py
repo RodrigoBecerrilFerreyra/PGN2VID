@@ -1,14 +1,13 @@
 import subprocess
 import numpy as np
 from PIL import Image
-import chess
+import chess.pgn
 
 def main():
 
-    board  = f"boards/green.png"
-    pieces = f"pieces/neo"
+    board_file  = f"boards/green.png"
+    pieces_dir = f"pieces/neo"
     size = 100
-    mg = MoveGenerator(size, board, pieces)
 
     ffmpeg_cmd = [
         "ffmpeg", "-y",
@@ -23,13 +22,18 @@ def main():
 
     ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
 
-    board_img = Image.open(board)
-    board_size = size * 8
-    board_img = board_img.resize((board_size, board_size), Image.Resampling.LANCZOS)
+    with open("game (with time).pgn", "r") as infile:
+        game = chess.pgn.read_game(infile)
+    board = game.board()
 
-    generator = mg.move_generator("wn.png", "g1", "f3")
-    for data in generator:
-        ffmpeg_process.stdin.write(data)
+    mg = MoveGenerator(size, board_file, pieces_dir)
+
+    for move in game.mainline_moves():
+        
+        print(move)
+        # generator = mg.move_generator("wn.png", move.from_square, move.to_square)
+        # for data in generator:
+        #     ffmpeg_process.stdin.write(data)
 
     ffmpeg_process.stdin.close()
     ffmpeg_process.wait()
@@ -38,7 +42,6 @@ class MoveGenerator:
 
     def __init__(self, square_size, board_file, piece_folder):
         self.square_size = square_size
-        self.piece_folder = piece_folder
 
         board_img = Image.open(board_file)
         board_size = square_size * 8
@@ -46,6 +49,27 @@ class MoveGenerator:
         if board_img.mode != "RGBA":
             board_img = board_img.convert("RGBA")
         self.board_img = board_img
+
+        # open all the pieces and resize them
+        self.pieces = {
+            "wq": Image.open(piece_folder + "/wq.png"),
+            "wr": Image.open(piece_folder + "/wr.png"),
+            "wn": Image.open(piece_folder + "/wn.png"),
+            "wb": Image.open(piece_folder + "/wb.png"),
+            "wk": Image.open(piece_folder + "/wk.png"),
+            "wp": Image.open(piece_folder + "/wp.png"),
+            "bq": Image.open(piece_folder + "/bq.png"),
+            "br": Image.open(piece_folder + "/br.png"),
+            "bn": Image.open(piece_folder + "/bn.png"),
+            "bb": Image.open(piece_folder + "/bb.png"),
+            "bk": Image.open(piece_folder + "/bk.png"),
+            "bp": Image.open(piece_folder + "/bp.png")
+        }
+
+        for key, value in enumerate(self.pieces):
+            self.pieces[key] = self.pieces[key].resize((square_size, square_size), Image.Resampling.LANCZOS)
+            if self.pieces[key].mode != "RGBA":
+                self.pieces[key] = self.pieces[key].convert("RGBA")
 
     def move_generator(self, piece, start_square, end_square, frames=30, dutycycle=0.25):
 
