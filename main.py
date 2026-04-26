@@ -24,9 +24,8 @@ def main():
 
     with open("game (with time).pgn", "r") as infile:
         game = chess.pgn.read_game(infile)
-    board = game.board()
 
-    mg = MoveGenerator(size, board_file, pieces_dir)
+    mg = MoveGenerator(size, board_file, pieces_dir, game)
 
     for move in game.mainline_moves():
         
@@ -40,8 +39,10 @@ def main():
 
 class MoveGenerator:
 
-    def __init__(self, square_size, board_file, piece_folder):
+    def __init__(self, square_size, board_file, piece_folder, game):
         self.square_size = square_size
+        self.game = game
+        self.board = game.board()
 
         board_img = Image.open(board_file)
         board_size = square_size * 8
@@ -52,21 +53,21 @@ class MoveGenerator:
 
         # open all the pieces and resize them
         self.pieces = {
-            "wq": Image.open(piece_folder + "/wq.png"),
-            "wr": Image.open(piece_folder + "/wr.png"),
-            "wn": Image.open(piece_folder + "/wn.png"),
-            "wb": Image.open(piece_folder + "/wb.png"),
-            "wk": Image.open(piece_folder + "/wk.png"),
-            "wp": Image.open(piece_folder + "/wp.png"),
-            "bq": Image.open(piece_folder + "/bq.png"),
-            "br": Image.open(piece_folder + "/br.png"),
-            "bn": Image.open(piece_folder + "/bn.png"),
-            "bb": Image.open(piece_folder + "/bb.png"),
-            "bk": Image.open(piece_folder + "/bk.png"),
-            "bp": Image.open(piece_folder + "/bp.png")
+            f"w{chess.PAWN}": Image.open(piece_folder + "/wp.png"),
+            f"w{chess.KNIGHT}": Image.open(piece_folder + "/wn.png"),
+            f"w{chess.BISHOP}": Image.open(piece_folder + "/wb.png"),
+            f"w{chess.ROOK}": Image.open(piece_folder + "/wr.png"),
+            f"w{chess.QUEEN}": Image.open(piece_folder + "/wq.png"),
+            f"w{chess.KING}": Image.open(piece_folder + "/wk.png"),
+            f"b{chess.PAWN}": Image.open(piece_folder + "/bq.png"),
+            f"b{chess.KNIGHT}": Image.open(piece_folder + "/br.png"),
+            f"b{chess.BISHOP}": Image.open(piece_folder + "/bn.png"),
+            f"b{chess.ROOK}": Image.open(piece_folder + "/bb.png"),
+            f"b{chess.QUEEN}": Image.open(piece_folder + "/bk.png"),
+            f"b{chess.KING}": Image.open(piece_folder + "/bp.png")
         }
 
-        for key, value in enumerate(self.pieces):
+        for key in self.pieces:
             self.pieces[key] = self.pieces[key].resize((square_size, square_size), Image.Resampling.LANCZOS)
             if self.pieces[key].mode != "RGBA":
                 self.pieces[key] = self.pieces[key].convert("RGBA")
@@ -101,11 +102,34 @@ class MoveGenerator:
         final_array_x = np.concat([movement_array_x, pause_array_x])
         final_array_y = np.concat([movement_array_y, pause_array_y])
 
+        # TODO: you don't have to regenerate frames when there's no movement
         for frame in range(frames):
             board_copy = self.board_img.copy()
             board_copy.paste(piece_img, (int(final_array_x[frame]), int(final_array_y[frame])), piece_img)
             board_copy = board_copy.convert("RGB")
             yield board_copy.tobytes()
+
+    def setup_board(fen, exclude_square=None):
+
+        board_copy = self.board_img.copy()
+
+        for square in chess.SQUARES:
+            if square == exclude_square:
+                continue
+
+            piece = self.board.piece_at(square)
+            if piece is None:
+                continue
+
+            piece_name = "w" if piece.color else "b"
+            piece_name += str(piece.piece_type)
+            piece_img = self.pieces[piece_name]
+
+            x, y = chess2coords(square)
+
+            board_copy.paste(piece_img, (x, y), piece_img)
+        
+        return board_copy
 
     def alg2coords(self, board_coords):
 
@@ -130,6 +154,12 @@ class MoveGenerator:
         }
 
         return (file_map[file]*self.square_size, (8-rank)*self.square_size)
+
+    def chess2coords(self, chess_square):
+
+        file = chess.square_file(chess_square)
+        rank = chess.square_rank(chess_square)
+        return (file * self.square_size, (7-rank) * self.square_size)
 
 if __name__ == "__main__":
     main()
