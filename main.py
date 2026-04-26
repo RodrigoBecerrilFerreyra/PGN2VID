@@ -29,10 +29,11 @@ def main():
 
     for move in game.mainline_moves():
         
-        print(move)
-        # generator = mg.move_generator("wn.png", move.from_square, move.to_square)
-        # for data in generator:
-        #     ffmpeg_process.stdin.write(data)
+        print(mg.board.san(move))
+        generator = mg.generate_moves(mg.board.piece_at(move.from_square), move.from_square, move.to_square)
+        for data in generator:
+            ffmpeg_process.stdin.write(data)
+        mg.board.push(move)
 
     ffmpeg_process.stdin.close()
     ffmpeg_process.wait()
@@ -59,12 +60,12 @@ class MoveGenerator:
             f"w{chess.ROOK}": Image.open(piece_folder + "/wr.png"),
             f"w{chess.QUEEN}": Image.open(piece_folder + "/wq.png"),
             f"w{chess.KING}": Image.open(piece_folder + "/wk.png"),
-            f"b{chess.PAWN}": Image.open(piece_folder + "/bq.png"),
-            f"b{chess.KNIGHT}": Image.open(piece_folder + "/br.png"),
-            f"b{chess.BISHOP}": Image.open(piece_folder + "/bn.png"),
-            f"b{chess.ROOK}": Image.open(piece_folder + "/bb.png"),
-            f"b{chess.QUEEN}": Image.open(piece_folder + "/bk.png"),
-            f"b{chess.KING}": Image.open(piece_folder + "/bp.png")
+            f"b{chess.PAWN}": Image.open(piece_folder + "/bp.png"),
+            f"b{chess.KNIGHT}": Image.open(piece_folder + "/bn.png"),
+            f"b{chess.BISHOP}": Image.open(piece_folder + "/bb.png"),
+            f"b{chess.ROOK}": Image.open(piece_folder + "/br.png"),
+            f"b{chess.QUEEN}": Image.open(piece_folder + "/bq.png"),
+            f"b{chess.KING}": Image.open(piece_folder + "/bk.png")
         }
 
         for key in self.pieces:
@@ -72,17 +73,16 @@ class MoveGenerator:
             if self.pieces[key].mode != "RGBA":
                 self.pieces[key] = self.pieces[key].convert("RGBA")
 
-    def move_generator(self, piece, start_square, end_square, frames=30, dutycycle=0.25):
+    def generate_moves(self, piece, start_square, end_square, frames=30, dutycycle=0.25):
 
         # convert algebraic notation to board coordinates
-        starting_square = self.alg2coords(start_square)
-        ending_square = self.alg2coords(end_square)
+        starting_square = self.chess2coords(start_square)
+        ending_square = self.chess2coords(end_square)
 
         # open piece image
-        piece_img = Image.open(self.piece_folder + "/" + piece)
-        piece_img = piece_img.resize((self.square_size, self.square_size), Image.Resampling.LANCZOS)
-        if piece_img.mode != "RGBA":
-            piece_img = piece_img.convert("RGBA")
+        piece_name = "w" if piece.color else "b"
+        piece_name += str(piece.piece_type)
+        piece_img = self.pieces[piece_name]
 
         # calculate how the piece will move
 
@@ -103,13 +103,14 @@ class MoveGenerator:
         final_array_y = np.concat([movement_array_y, pause_array_y])
 
         # TODO: you don't have to regenerate frames when there's no movement
+        board_setup = self.setup_board(exclude_square=start_square)
         for frame in range(frames):
-            board_copy = self.board_img.copy()
+            board_copy = board_setup.copy()
             board_copy.paste(piece_img, (int(final_array_x[frame]), int(final_array_y[frame])), piece_img)
             board_copy = board_copy.convert("RGB")
             yield board_copy.tobytes()
 
-    def setup_board(fen, exclude_square=None):
+    def setup_board(self, exclude_square=None):
 
         board_copy = self.board_img.copy()
 
@@ -125,7 +126,7 @@ class MoveGenerator:
             piece_name += str(piece.piece_type)
             piece_img = self.pieces[piece_name]
 
-            x, y = chess2coords(square)
+            x, y = self.chess2coords(square)
 
             board_copy.paste(piece_img, (x, y), piece_img)
         
