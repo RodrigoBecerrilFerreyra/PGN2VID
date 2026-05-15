@@ -102,13 +102,16 @@ class MoveGenerator:
         final_array_x = np.concat([movement_array_x, pause_array_x])
         final_array_y = np.concat([movement_array_y, pause_array_y])
 
-        # TODO: you don't have to regenerate frames when there's no movement
         board_setup = self.setup_board(exclude_square=start_square)
-        for frame in range(frames):
+        for frame in range(movement_frames):
             board_copy = board_setup.copy()
             board_copy.paste(piece_img, (int(final_array_x[frame]), int(final_array_y[frame])), piece_img)
             board_copy = board_copy.convert("RGB")
             yield board_copy.tobytes()
+        
+        for frame in range(pause_frames):
+            board_bytes = board_copy.tobytes()
+            yield board_bytes
 
     def setup_board(self, exclude_square=None):
 
