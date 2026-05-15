@@ -109,8 +109,8 @@ class MoveGenerator:
             board_copy = board_copy.convert("RGB")
             yield board_copy.tobytes()
         
+        board_bytes = board_copy.tobytes()
         for frame in range(pause_frames):
-            board_bytes = board_copy.tobytes()
             yield board_bytes
 
     def setup_board(self, exclude_square=None):
