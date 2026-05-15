@@ -5,7 +5,7 @@ import chess.pgn
 
 def main():
 
-    board_file  = f"boards/green.png"
+    board_dir  = f"boards/green"
     pieces_dir = f"pieces/neo"
     size = 100
 
@@ -25,7 +25,7 @@ def main():
     with open("game (with time).pgn", "r") as infile:
         game = chess.pgn.read_game(infile)
 
-    mg = MoveGenerator(size, board_file, pieces_dir, game)
+    mg = MoveGenerator(size, board_dir, pieces_dir, game)
 
     for move in game.mainline_moves():
         
@@ -40,17 +40,31 @@ def main():
 
 class MoveGenerator:
 
-    def __init__(self, square_size, board_file, piece_folder, game):
+    def __init__(self, square_size, board_dir, piece_folder, game):
         self.square_size = square_size
         self.game = game
         self.board = game.board()
+        self.board_files = {}
+        self.pieces = {}
 
-        board_img = Image.open(board_file)
+        board_img = Image.open(board_dir + "/board.png")
         board_size = square_size * 8
         board_img = board_img.resize((board_size, board_size), Image.Resampling.LANCZOS)
         if board_img.mode != "RGBA":
             board_img = board_img.convert("RGBA")
-        self.board_img = board_img
+        self.board_files["board_img"] = board_img
+
+        lastmove_light = Image.open(board_dir + "/lastmove_light.png")
+        lastmove_light = lastmove_light.resize((square_size, square_size), Image.Resampling.LANCZOS)
+        if lastmove_light.mode != "RGBA":
+            lastmove_light = lastmove_light.convert("RGBA")
+        self.board_files["lastmove_light"] = lastmove_light
+
+        lastmove_dark = Image.open(board_dir + "/lastmove_dark.png")
+        lastmove_dark = lastmove_dark.resize((square_size, square_size), Image.Resampling.LANCZOS)
+        if lastmove_dark.mode != "RGBA":
+            lastmove_dark = lastmove_dark.convert("RGBA")
+        self.board_files["lastmove_dark"] = lastmove_dark
 
         # open all the pieces and resize them
         self.pieces = {
@@ -115,7 +129,7 @@ class MoveGenerator:
 
     def setup_board(self, exclude_square=None):
 
-        board_copy = self.board_img.copy()
+        board_copy = self.board_files["board_img"].copy()
 
         for square in chess.SQUARES:
             if square == exclude_square:
